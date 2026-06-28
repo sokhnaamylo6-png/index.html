@@ -208,6 +208,84 @@ textarea.field.short { min-height: 70px; }
   margin-top: 8px; opacity: 0; transition: opacity 0.3s;
 }
 .save-ok.show { opacity: 1; }
+
+/* ===== MEMORISATION AL-BAQARA ===== */
+.quran-card {
+  background: #2C2620;
+  border-radius: 12px;
+  border: 1px solid #3D3528;
+  padding: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.quran-q-label {
+  font-family: 'EB Garamond', serif; font-style: italic;
+  font-size: 14.5px; color: #F0E6D0;
+  margin-bottom: 10px;
+}
+.quran-yn-row {
+  display: flex; gap: 10px;
+  margin-bottom: 10px;
+}
+.quran-yn-btn {
+  flex: 1; padding: 10px;
+  background: #241F19;
+  border: 1px solid #3D3528;
+  border-radius: 9px;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700; font-size: 12px;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: #8A7A55;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quran-yn-btn.active-yes {
+  border-color: #D4A843;
+  background: linear-gradient(135deg, #C49A3A, #D4A843);
+  color: #1A1612;
+}
+.quran-yn-btn.active-no {
+  border-color: #8A4A3A;
+  background: #4A2A20;
+  color: #F0E6D0;
+}
+.quran-feedback {
+  font-family: 'EB Garamond', serif; font-style: italic;
+  font-size: 13px; line-height: 1.6;
+  color: #D4A843;
+  padding: 10px 12px;
+  background: #241F19;
+  border-radius: 9px;
+  border-left: 2px solid #D4A843;
+  margin-top: 4px;
+}
+.quran-feedback.warn {
+  color: #E0B090;
+  border-left-color: #B0654A;
+}
+.quran-saturday-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #3D3528;
+}
+
+/* ===== HABITUDE DISCRETE (brossage dents) ===== */
+.habit-row {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 16px 6px;
+}
+.habit-dot {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid #6A5A3A;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.habit-dot.on {
+  background: #D4A843;
+  border-color: #D4A843;
+}
 </style>
 </head>
 <body>
@@ -237,6 +315,12 @@ textarea.field.short { min-height: 70px; }
   </div>
 </div>
 
+<!-- HABITUDE DISCRETE -->
+<div class="habit-row">
+  <div class="habit-dot" id="habitMorning" onclick="toggleHabit('morning')" title="matin"></div>
+  <div class="habit-dot" id="habitEvening" onclick="toggleHabit('evening')" title="soir"></div>
+</div>
+
 <div class="page">
 
   <!-- MOUHASABAT -->
@@ -263,6 +347,32 @@ textarea.field.short { min-height: 70px; }
           <div class="table-head">✨ Did it list Lillah</div>
           <div id="colB"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMORISATION AL-BAQARA -->
+  <div class="section" style="padding-top:14px;">
+    <div class="section-title">
+      <div class="section-bar"></div>
+      <div class="section-label">Mémorisation Al-Baqara</div>
+    </div>
+    <div class="section-hint">→ après Fajr, même quelques minutes</div>
+    <div class="quran-card">
+      <div class="quran-q-label">As-tu appris de nouveaux versets aujourd'hui ?</div>
+      <div class="quran-yn-row">
+        <button class="quran-yn-btn" id="qLearnYes" onclick="setQuranLearn(true)">Oui</button>
+        <button class="quran-yn-btn" id="qLearnNo" onclick="setQuranLearn(false)">Non</button>
+      </div>
+      <div class="quran-feedback" id="qLearnFeedback" style="display:none;"></div>
+
+      <div class="quran-saturday-block" id="qSaturdayBlock" style="display:none;">
+        <div class="quran-q-label">C'est samedi — as-tu récité avec ton mari ?</div>
+        <div class="quran-yn-row">
+          <button class="quran-yn-btn" id="qReciteYes" onclick="setQuranRecite(true)">Oui</button>
+          <button class="quran-yn-btn" id="qReciteNo" onclick="setQuranRecite(false)">Non</button>
+        </div>
+        <div class="quran-feedback" id="qReciteFeedback" style="display:none;"></div>
       </div>
     </div>
   </div>
@@ -345,6 +455,9 @@ function build(d) {
       el.appendChild(inp);
     }
   });
+
+  if (typeof buildQuran === 'function') buildQuran(d);
+  if (typeof buildHabit === 'function') buildHabit(d);
 }
 
 function todayIdx() {
@@ -365,6 +478,144 @@ let tm;
 document.body.addEventListener('input', ()=>{ clearTimeout(tm); tm=setTimeout(()=>save(day),1000); });
 
 build(todayIdx());
+
+/* ===================================================================
+   MEMORISATION AL-BAQARA — suivi journalier simple
+   =================================================================== */
+const QURAN_YES_MESSAGES = [
+  "Alhamdoulillah, qu'Allah te facilite et bénisse ce que tu as appris aujourd'hui. 🤍",
+  "Mashallah, petit à petit, verset après verset, tu avances vraiment. Continue ainsi.",
+  "Qu'Allah te récompense pour cet effort. Chaque verset appris est une lumière de plus.",
+  "Barakallahu fik, tu tiens ton engagement — c'est exactement ça la constance.",
+  "Qu'Allah accepte ton effort aujourd'hui et te facilite la suite, in cha Allah."
+];
+
+const QURAN_NO_MESSAGES_SOFT = [
+  "Pas grave, demain est une nouvelle occasion. L'essentiel c'est de ne pas abandonner le projet.",
+  "Une journée sans avancer n'efface pas tout le chemin déjà parcouru. Reviens-y demain, doucement.",
+  "Ce n'est rien — repose-toi si tu en as besoin. Tu reprendras après Fajr, in cha Allah."
+];
+
+const QURAN_NO_MESSAGES_FIRM = [
+  "Rappelle-toi pourquoi tu as commencé : tu voulais mémoriser Al-Baqara cette année. Chaque jour sans verset retarde cet objectif.",
+  "Même 10 minutes après Fajr suffisent. Ne laisse pas la fatigue décider à ta place.",
+  "Tu t'étais engagée à le faire même fatiguée. Aujourd'hui n'a pas compté — fais en sorte que demain compte."
+];
+
+function quranPickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function quranStateKey(d) { return 'quranDay_' + d; }
+
+function quranLoadDay(d) {
+  const r = localStorage.getItem(quranStateKey(d));
+  return r ? JSON.parse(r) : {};
+}
+
+function quranSaveDay(d, state) {
+  localStorage.setItem(quranStateKey(d), JSON.stringify(state));
+}
+
+function buildQuran(d) {
+  const x = dt(d);
+  const isSaturday = x.getDay() === 6;
+  const state = quranLoadDay(d);
+
+  // Learn yes/no buttons
+  const learnYes = document.getElementById('qLearnYes');
+  const learnNo = document.getElementById('qLearnNo');
+  const learnFeedback = document.getElementById('qLearnFeedback');
+
+  learnYes.classList.toggle('active-yes', state.learn === true);
+  learnNo.classList.toggle('active-no', state.learn === false);
+
+  if (state.learn === true) {
+    learnFeedback.textContent = state.learnMsg || '';
+    learnFeedback.className = 'quran-feedback';
+    learnFeedback.style.display = 'block';
+  } else if (state.learn === false) {
+    learnFeedback.textContent = state.learnMsg || '';
+    learnFeedback.className = 'quran-feedback warn';
+    learnFeedback.style.display = 'block';
+  } else {
+    learnFeedback.style.display = 'none';
+  }
+
+  // Saturday recitation block
+  const satBlock = document.getElementById('qSaturdayBlock');
+  if (isSaturday) {
+    satBlock.style.display = 'block';
+    const reciteYes = document.getElementById('qReciteYes');
+    const reciteNo = document.getElementById('qReciteNo');
+    const reciteFeedback = document.getElementById('qReciteFeedback');
+
+    reciteYes.classList.toggle('active-yes', state.recite === true);
+    reciteNo.classList.toggle('active-no', state.recite === false);
+
+    if (state.recite === true) {
+      reciteFeedback.textContent = "Mashallah, la récitation à deux est une vraie force pour ancrer la mémorisation. Qu'Allah bénisse votre engagement commun.";
+      reciteFeedback.className = 'quran-feedback';
+      reciteFeedback.style.display = 'block';
+    } else if (state.recite === false) {
+      reciteFeedback.textContent = "Essaie de caler un moment avec ton mari avant la fin du week-end — la récitation hebdomadaire est ce qui consolide tout ce que tu as appris.";
+      reciteFeedback.className = 'quran-feedback warn';
+      reciteFeedback.style.display = 'block';
+    } else {
+      reciteFeedback.style.display = 'none';
+    }
+  } else {
+    satBlock.style.display = 'none';
+  }
+}
+
+function setQuranLearn(value) {
+  const state = quranLoadDay(day);
+  state.learn = value;
+  state.learnMsg = value
+    ? quranPickRandom(QURAN_YES_MESSAGES)
+    : quranPickRandom(Math.random() < 0.5 ? QURAN_NO_MESSAGES_SOFT : QURAN_NO_MESSAGES_FIRM);
+  quranSaveDay(day, state);
+  buildQuran(day);
+}
+
+function setQuranRecite(value) {
+  const state = quranLoadDay(day);
+  state.recite = value;
+  quranSaveDay(day, state);
+  buildQuran(day);
+}
+
+buildQuran(day);
+
+/* ===================================================================
+   HABITUDE DISCRETE — brossage de dents (matin / soir)
+   =================================================================== */
+function habitKey(d) { return 'habitTeeth_' + d; }
+
+function habitLoad(d) {
+  const r = localStorage.getItem(habitKey(d));
+  return r ? JSON.parse(r) : { morning: false, evening: false };
+}
+
+function habitSave(d, state) {
+  localStorage.setItem(habitKey(d), JSON.stringify(state));
+}
+
+function buildHabit(d) {
+  const state = habitLoad(d);
+  document.getElementById('habitMorning').classList.toggle('on', !!state.morning);
+  document.getElementById('habitEvening').classList.toggle('on', !!state.evening);
+}
+
+function toggleHabit(which) {
+  const state = habitLoad(day);
+  state[which] = !state[which];
+  habitSave(day, state);
+  buildHabit(day);
+}
+
+buildHabit(day);
 </script>
 </body>
 </html>
